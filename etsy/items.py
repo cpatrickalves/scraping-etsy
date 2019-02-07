@@ -50,5 +50,5 @@ class ProductItem(scrapy.Item):
                               output_processor=TakeFirst())
     store_location = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                                   output_processor=TakeFirst())
-    returns_location = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
+    return_location = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                                     output_processor=TakeFirst())

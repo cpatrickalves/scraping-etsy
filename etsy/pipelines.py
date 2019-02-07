@@ -14,6 +14,9 @@ class EtsyPipeline(object):
         if 'store_location' in item:
             item['store_location'] = item['store_location'].replace('in ', '')
         
+        if 'return_location' in item:
+            item['return_location'] = item['return_location'].replace('From ', '')
+
         # Sometimes the spider take the rate in the wrong format (ex: 48.333 instead of 4.8333)
         if 'rating' in item:
             rating = item['rating']
