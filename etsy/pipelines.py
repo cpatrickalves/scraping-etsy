@@ -4,16 +4,25 @@
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-import re
+
 
 class EtsyPipeline(object):
     def process_item(self, item, spider):
-        #if item['price']:
-        #    item['price'] = item['price'].split()[1] 
         
+        if 'price' in item:
+            # Check if there is a currency symbol
+            if len(item['price'].split()) > 1:
+                # Remove the currency symbol and the + signal
+                item['price'] = item['price'].split()[1].replace('+','')
+            else:
+                # Remove the currency symbol and the + signal
+                item['price'] = item['price'].replace('$','').replace('+','')
+        
+        # Remove the 'in' string 
         if 'store_location' in item:
             item['store_location'] = item['store_location'].replace('in ', '')
         
+        # Remove the 'From' string 
         if 'return_location' in item:
             item['return_location'] = item['return_location'].replace('From ', '')
 
@@ -28,5 +37,4 @@ class EtsyPipeline(object):
 
             item['rating'] = rating
         
-        return item
-       
+        return item     

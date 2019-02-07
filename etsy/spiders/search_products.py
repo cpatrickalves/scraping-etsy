@@ -73,11 +73,14 @@ class ProductsSpider(scrapy.Spider):
         
         # Get the produc Title
         l.add_xpath('title', '//meta[@property="og:title"]/@content')
-        l.add_xpath('title', "//h1[@data-listing-id='{}']".format(response.url.split('/')[4]))
+        #l.add_xpath('title', "//h1[@data-listing-id='{}']".format(response.url.split('/')[4]))
         
         # Get the product price
-        l.add_xpath('price', '//meta[@property="etsymarketplace:price_value"]/@content')
-        l.add_xpath('price', '//meta[@property="product:price:amount"]/@content')
+        #price = response.xpath('//*[contains(@data-buy-box-region, "price")]//span/text()').extract_first().strip().replace('+','').split()[1]
+        #l.add_value('price', price)
+        l.add_xpath('price', '//*[contains(@data-buy-box-region, "price")]//span')
+        #l.add_xpath('price', '//meta[@property="etsymarketplace:price_value"]/@content')
+        #l.add_xpath('price', '//meta[@property="product:price:amount"]/@content')
         #l.add_xpath('currency', '//meta[@property="product:price:currency"]/@content')
         #l.add_xpath('currency', '//meta[@property="etsymarketplace:currency_code"]/@content')
         
@@ -86,8 +89,8 @@ class ProductsSpider(scrapy.Spider):
         
         # Get the product description
         l.add_value('description', " ".join(response.xpath('//*[contains(@id, "description-text")]//text()').extract()).strip())
-        l.add_xpath('description', '//*[@id="description-text"]')
-        l.add_xpath('description', '//meta[@property="og:description"]/@content')
+        #l.add_xpath('description', '//*[@id="description-text"]')
+        #l.add_xpath('description', '//meta[@property="og:description"]/@content')
 
         # Get each product option and save in a list
         product_options = []
@@ -123,15 +126,22 @@ class ProductsSpider(scrapy.Spider):
         l.add_xpath('overview', '//*[@class="listing-page-overview-component"]//li')
         
         # Get the number of people that add the product in favorites
-        l.add_xpath('favorited_by', '//*[@id="item-overview"]//*[contains(@href, "/favoriters")]/text()', re='(\d+)')
+        #l.add_xpath('favorited_by', '//*[@id="item-overview"]//*[contains(@href, "/favoriters")]/text()', re='(\d+)')
         l.add_xpath('favorited_by', '//*[@class="listing-page-favorites-link"]/text()', re='(\d+)')
         
-        # Get the name of the Store, location and return location
+        # Get the name of the Store and location 
         l.add_xpath('store_name', '//span[@itemprop="title"]')
-        l.add_xpath('store_name', '//*[@id="shop-info"]//*[@class="text-title-smaller"]')        
+        #l.add_xpath('store_name', '//*[@id="shop-info"]//*[@class="text-title-smaller"]')        
         l.add_xpath('store_location', '//*[@id="shop-info"]/div')
-        l.add_xpath('return_location',"//*[@class='js-estimated-delivery']/following-sibling::div")
+        l.add_xpath('return_location', "//*[@class='js-estimated-delivery']/following-sibling::div")
         
+        # Get return location
+#       ]return_loc =  response.xpath("//*[@class='js-estimated-delivery']/following-sibling::div//text()").extract_first().strip()
+        #print('\n\n############ '+response.url.split('/')[4]+ ' --- '+return_loc+' ############\n\n')
+        #l.add_value('return_location',return_loc)        
+        #l.add_xpath('return_location', '//div[contains(text(), "From ")]')
+        
+
         # Increment the items counter
         self.COUNTER += 1
         print('\n\n Products scraped: {}\n\n'.format(self.COUNTER))
@@ -165,29 +175,24 @@ class ProductsSpider(scrapy.Spider):
             wb.save(csv_file.replace('.csv', '') + '.xlsx')
 
 """
-OK - Name
-OK - ID
 OK - URL
 OK - Listing Title 
 OK - Description 
-Product options
-OK - Price
-OK - Store name
-OK - Location
-OK - Rating number
-OK - Number of votes
-OK - Return location
-OK - Count of images per listing
-OK - Product overview
-??? - Favorited by (very important)
+OK - Product options
+Price
+Store name
+Location
+Rating number
+Number of votes
+Return location
+Count of images per listing
+Product overview
+Favorited by (very important)
 
 Reviews:
 Rating
 Date
 Review content
 Reviewer profile URL
-
-Item nao existe!!
-GERAR CSV
 """
 

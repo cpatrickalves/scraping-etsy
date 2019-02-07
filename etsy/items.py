@@ -48,7 +48,9 @@ class ProductItem(scrapy.Item):
     favorited_by = scrapy.Field(output_processor=TakeFirst())
     store_name = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                               output_processor=TakeFirst())
+                              
     store_location = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                                   output_processor=TakeFirst())
+
     return_location = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                                     output_processor=TakeFirst())

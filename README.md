@@ -17,7 +17,7 @@ pip install -r requirements.txt
 ### Spider: search_products.py
 Inside the project's folder, run:
 ```
-scrapy crawl search_products -a search='3d printed' -o products.csv
+scrapy crawl search_products -a search='3d printed' 
 ```
 To save the results, use -o parameter:
 ```
