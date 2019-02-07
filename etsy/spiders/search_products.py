@@ -3,9 +3,9 @@
 #title           :search_products.py
 #description     :A spider to scrape etsy.com products based on a search string.
 #author          :Patrick Alves (cpatrickalves@gmail.com)
-#date            :21-01-2019
+#last Update     :07-02-2019
 #usage           :scrapy crawl etsy_search -a search='3d printed' -o products.csv
-#python_version  :3.6
+#python version  :3.6
 #==============================================================================
 
 
@@ -26,6 +26,8 @@ class ProductsSpider(scrapy.Spider):
 
     # Max number of items 
     COUNT_MAX = 20
+    custom_settings = { "CLOSESPIDER_ITEMCOUNT" : COUNT_MAX }
+    # Count the number of items scraped
     COUNTER = 0
 
     def __init__(self, search, *args, **kwargs):
@@ -42,16 +44,14 @@ class ProductsSpider(scrapy.Spider):
         # For each product extracts the product URL
         for product in products_list:
             product_url = product.xpath("./@href").extract_first()
+                         
+            # Go to the product's page to get the data
+            yield scrapy.Request(product_url, callback=self.parse_product)
 
-            if self.COUNTER <= self.COUNT_MAX:                    
-                # Go to the product's page to get the data
-                yield scrapy.Request(product_url, callback=self.parse_product)
-
-        # Pagination - Go to the next page 
-        if self.COUNTER <= self.COUNT_MAX:    
-            next_page_url = response.xpath('//*[contains(@role, "navigation")]//@href').extract()[-1]
-            self.logger.info('NEXT PAGE')
-            yield scrapy.Request(next_page_url)
+        # Pagination - Go to the next page         
+        next_page_url = response.xpath('//*[contains(@role, "navigation")]//@href').extract()[-1]
+        self.logger.info('NEXT PAGE')
+        yield scrapy.Request(next_page_url)
 
 
     # Get the HTML from product's page and get the data
@@ -64,33 +64,72 @@ class ProductsSpider(scrapy.Spider):
 
         # Create the ItemLoader object that stores each product information
         l = ItemLoader(item=ProductItem(), response=response)
+
+        # Get the product ID (ex: 666125766)
         l.add_value('product_id',response.url.split('/')[4])
+        
+        # Get the produc Title
         l.add_xpath('title', '//meta[@property="og:title"]/@content')
         l.add_xpath('title', "//h1[@data-listing-id='{}']".format(response.url.split('/')[4]))
-        #l.add_value('price', response.xpath('//*[contains(@data-buy-box-region, "price")]//span/text()').extract_first().strip().replace('$','').replace('+',''))
+        
+        # Get the product price
         l.add_xpath('price', '//meta[@property="etsymarketplace:price_value"]/@content')
         l.add_xpath('price', '//meta[@property="product:price:amount"]/@content')
         #l.add_xpath('currency', '//meta[@property="product:price:currency"]/@content')
         #l.add_xpath('currency', '//meta[@property="etsymarketplace:currency_code"]/@content')
+        
+        # Get the product URL (ex: www.etsy.com/listing/666125766)
         l.add_value('url', '/'.join(response.url.split('/')[2:5]))
+        
+        # Get the product description
         l.add_value('description', " ".join(response.xpath('//*[contains(@id, "description-text")]//text()').extract()).strip())
-        #l.add_xpath('description', '//*[@id="description-text"]')
-        #l.add_xpath('description', '//meta[@property="og:description"]/@content')
-        l.add_xpath('variations', '//*[@data-buy-box-region="variation"]/label')                
+        l.add_xpath('description', '//*[@id="description-text"]')
+        l.add_xpath('description', '//meta[@property="og:description"]/@content')
+
+        # Get each product option and save in a list
+        product_options = []
+        product_options_list = response.xpath('//*[contains(@id, "inventory-variation-select")]')
+        for options in product_options_list:
+            # Get list of options
+            temp_list = options.xpath('.//text()').extract()
+            # Remove '\n' strings
+            temp_list = list(map(lambda s: s.strip(), temp_list))
+            # Remove empty strings ('')
+            temp_list = list(filter(lambda s: s != '', temp_list))
+
+            # Filter the 'Quantity' option
+            if temp_list[0] != '1':
+                # Create the final string:
+                # example: "Select a color: White, Black, Red, Silver"
+                product_options.append(temp_list[0] +': ' + ', '.join(temp_list[1:]))
+
+        # Separate each option with a | symbol
+        l.add_value('product_options', '|'.join(product_options))                
+
+        # Get the product rating (ex: 4.8 )
         l.add_xpath('rating', '//a[@href="#reviews"]//input[@name="rating"]/@value')
+        
+        # Get the number of votes (number of reviews)
         l.add_xpath('number_of_votes', '//a[@href="#reviews"]/span[last()]/text()', re='(\d+)')
         
+        # Count the number of product images 
         images_sel = response.xpath('//*[@id="image-carousel"]/li')
         l.add_value('count_of_images', len(images_sel))
+        
+        # Get the product overview
         l.add_xpath('overview', '//*[@class="listing-page-overview-component"]//li')
+        
+        # Get the number of people that add the product in favorites
         l.add_xpath('favorited_by', '//*[@id="item-overview"]//*[contains(@href, "/favoriters")]/text()', re='(\d+)')
         l.add_xpath('favorited_by', '//*[@class="listing-page-favorites-link"]/text()', re='(\d+)')
+        
+        # Get the name of the Store, location and return location
         l.add_xpath('store_name', '//span[@itemprop="title"]')
         l.add_xpath('store_name', '//*[@id="shop-info"]//*[@class="text-title-smaller"]')        
         l.add_xpath('store_location', '//*[@id="shop-info"]/div')
         l.add_xpath('return_location',"//*[@class='js-estimated-delivery']/following-sibling::div")
         
-        # Increment the counter
+        # Increment the items counter
         self.COUNTER += 1
         print('\n\n Products scraped: {}\n\n'.format(self.COUNTER))
 
@@ -108,9 +147,9 @@ OK - Store name
 OK - Location
 OK - Rating number
 OK - Number of votes
-Return location
+OK - Return location
 OK - Count of images per listing
-Product overview
+OK - Product overview
 ??? - Favorited by (very important)
 
 Reviews:

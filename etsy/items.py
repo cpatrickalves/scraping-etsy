@@ -29,7 +29,7 @@ class ProductItem(scrapy.Item):
     description = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
     					       output_processor=TakeFirst())
 
-    variations = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
+    product_options = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                               output_processor=Join(','))
 
     price = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
