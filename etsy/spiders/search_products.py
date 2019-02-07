@@ -11,11 +11,14 @@
 
 # -*- coding: utf-8 -*-
 import scrapy
+import os
+import sys
+import csv
+import glob
+from openpyxl import Workbook
 from scrapy.http import Request
 from etsy.items import ProductItem
 from scrapy.loader import ItemLoader
-from urllib.parse import urlparse
-
 
 # Spider Class
 class ProductsSpider(scrapy.Spider):
@@ -25,7 +28,7 @@ class ProductsSpider(scrapy.Spider):
     start_urls = ['https://www.etsy.com/']
 
     # Max number of items 
-    COUNT_MAX = 20
+    COUNT_MAX = 10
     custom_settings = { "CLOSESPIDER_ITEMCOUNT" : COUNT_MAX }
     # Count the number of items scraped
     COUNTER = 0
@@ -134,6 +137,32 @@ class ProductsSpider(scrapy.Spider):
         print('\n\n Products scraped: {}\n\n'.format(self.COUNTER))
 
         return l.load_item()
+
+
+    # Create the Excel file
+    def close(self, reason):
+       
+        # Check if there is a CSV file in arguments
+        csv_found = False
+        for arg in sys.argv:
+            if '.csv' in arg:
+                csv_found = True
+
+        if csv_found:            
+            self.logger.info('Creating Excel file')
+            #  Get the last csv file created
+            csv_file = max(glob.iglob('*.csv'), key=os.path.getctime)
+
+            wb = Workbook()
+            ws = wb.active
+
+            with open(csv_file, 'r', encoding='utf-8') as f:
+                for row in csv.reader(f):
+                    # Check if the row is not empty
+                    if row:
+                        ws.append(row)
+            # Saves the file
+            wb.save(csv_file.replace('.csv', '') + '.xlsx')
 
 """
 OK - Name
