@@ -54,3 +54,5 @@ class ProductItem(scrapy.Item):
 
     return_location = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                                     output_processor=TakeFirst())
+
+    reviews = scrapy.Field()

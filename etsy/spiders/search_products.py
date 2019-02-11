@@ -28,7 +28,7 @@ class ProductsSpider(scrapy.Spider):
     start_urls = ['https://www.etsy.com/']
 
     # Max number of items 
-    COUNT_MAX = 10
+    COUNT_MAX = 2
     custom_settings = { "CLOSESPIDER_ITEMCOUNT" : COUNT_MAX }
     # Count the number of items scraped
     COUNTER = 0
@@ -141,12 +141,86 @@ class ProductsSpider(scrapy.Spider):
         #l.add_value('return_location',return_loc)        
         #l.add_xpath('return_location', '//div[contains(text(), "From ")]')
         
+        # If set to True, Spider will visit the page with all store reviews and get the reviews for this specific product
+        # If set to False, Spider will get only the reviews in the product's page
+        get_all_views = True
 
-        # Increment the items counter
-        self.COUNTER += 1
-        print('\n\n Products scraped: {}\n\n'.format(self.COUNTER))
+        if get_all_views:
+            # Getting all Reviews        
+            store_name = response.xpath('//span[@itemprop="title"]//text()').extract_first()
+            # Build the reviews URL
+            rev_url = "https://www.etsy.com/shop/{}/reviews?ref=l2-see-more-feedback".format(store_name)
+            data = {'itemLoader':l, 'product_id':response.url.split('/')[4]}
 
-        return l.load_item()
+            yield Request(rev_url, meta=data, callback=self.parse_reviews)        
+        
+        else:
+            # Increment the items counter
+            self.COUNTER += 1
+            print('\n\n Products scraped: {}\n\n'.format(self.COUNTER))
+
+            return l.load_item()
+
+
+    # Parse the Store reviews page
+    def parse_reviews(self, response):
+        # Get the itemLoader object from parser_products
+        l = response.meta['itemLoader']
+
+        # Get the data from each review
+        all_reviews = response.xpath("//*[@data-region='review']")
+        # Dict that saves all the reviews data
+        reviews_data = {}
+        reviews_counter = 1
+
+        # Process each review
+        for r in all_reviews:
+            
+            # Get the product id of the review
+            product_id = response.xpath("//*[@data-region='listing']//@href").extract_first().split('/')[4]
+
+            # Check if the review if for the product in analysis
+            if response.meta['product_id'] == product_id:
+                # Get the profile URL of the reviewer
+                reviewer_profile = r.xpath(".//*[@class='shop2-review-attribution']//@href").extract_first()
+                if reviewer_profile:                
+                    # Shorter version of the profile url
+                    reviewer_profile = reviewer_profile.split('?')[0]
+                else:
+                    # If the profile is inactive there is no profile url
+                    continue
+
+                reviewer_rating = r.xpath('.//input[@name="rating"]/@value').extract_first()
+                review_date = r.xpath(".//*[@class='shop2-review-attribution']//text()").extract()[2].replace('on ','').strip()
+                review_content = " ".join(r.xpath('.//div[@class="text-gray-lighter"]//text()').extract()).strip()
+                
+                rev_data = {'reviewer_profile':reviewer_profile, 
+                                'reviewer_rating': reviewer_rating, 
+                                'review_date':review_date, 
+                                'review_content':review_content}
+
+                reviews_data[reviews_counter] = rev_data
+                reviews_counter += 1
+                
+        # Saves the data
+        l.add_value('reviews', reviews_data)
+        
+        # Go to the next reviews page
+        next_page_url = response.xpath("//*[contains(text(),'Next page')]/parent::*/@href").extract_first()        
+        # Check if there is a next page
+        if next_page_url: 
+            # Save the current data 
+            data = {'itemLoader':l, 'product_id':product_id}
+            # Build the request
+            yield Request(next_page_url, meta=data, callback=self.parse_reviews)
+               
+        else:
+            # If there is no next page, saves the data
+            # Increment the items counter
+            self.COUNTER += 1
+            print('\nProducts scraped: {}\n'.format(self.COUNTER))
+
+            return l.load_item()
 
 
     # Create the Excel file
@@ -179,15 +253,15 @@ OK - URL
 OK - Listing Title 
 OK - Description 
 OK - Product options
-Price
-Store name
-Location
-Rating number
-Number of votes
-Return location
-Count of images per listing
-Product overview
-Favorited by (very important)
+OK - Price
+OK - Store name
+OK - Location
+OK - Rating number
+OK - Number of votes
+OK - Return location
+OK - Count of images per listing
+OK - Product overview
+OK - Favorited by (very important)
 
 Reviews:
 Rating

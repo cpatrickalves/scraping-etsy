@@ -21,10 +21,10 @@ USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 ROBOTSTXT_OBEY = False
 
 # Data fields that are exported to csv or Json output
-FEED_EXPORT_FIELDS = ['title', 'product_id', 'url', 'price', 'rating', 'number_of_votes', 'product_options', 'count_of_images', 'favorited_by', 'store_name', 'store_location', 'return_location','overview', 'description']
+FEED_EXPORT_FIELDS = ['title', 'product_id', 'url', 'price', 'rating', 'number_of_votes', 'product_options', 'count_of_images', 'favorited_by', 'store_name', 'store_location', 'return_location','overview', 'description', 'reviews']
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-#CONCURRENT_REQUESTS = 10
+CONCURRENT_REQUESTS = 1
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
