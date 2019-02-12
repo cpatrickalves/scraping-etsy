@@ -9,7 +9,6 @@
 #==============================================================================
 
 
-# -*- coding: utf-8 -*-
 import scrapy
 import os
 import sys
@@ -42,13 +41,12 @@ class ProductsSpider(scrapy.Spider):
     def __init__(self, search, reviews_option=1, count_max=None,*args, **kwargs):
         if search:
             # Build the search URL
-            self.start_urls = ['https://www.etsy.com/search?q=%s' % search]
-            
+            self.start_urls = ['https://www.etsy.com/search?q={}&ref=pagination&page=1'.format(search)]            
             # Set the maximum number of items to be scraped
             if count_max:
                 self.COUNT_MAX = int(count_max)
             
-            # Set the chosen option
+            # Set the chosen review option
             self.reviews_opt = int(reviews_option)
 
         super(ProductsSpider, self).__init__(*args, **kwargs)
@@ -68,9 +66,10 @@ class ProductsSpider(scrapy.Spider):
                 # Go to the product's page to get the data               
                 yield scrapy.Request(product_url, callback=self.parse_product)
 
-        # Pagination - Go to the next page                
-        next_page_url = response.xpath('//*[contains(@role, "navigation")]//@href').extract()[-1]
-        self.logger.info('NEXT PAGE')
+        # Pagination - Go to the next page  
+        current_page_number = int(response.url[-1])                      
+        next_page_number = current_page_number + 1
+        next_page_url = response.url[:-1] + str(next_page_number)        
         yield scrapy.Request(next_page_url)
 
 
@@ -97,23 +96,15 @@ class ProductsSpider(scrapy.Spider):
         l.add_xpath('title', '//meta[@property="og:title"]/@content')
         #l.add_xpath('title', "//h1[@data-listing-id='{}']".format(response.url.split('/')[4]))
         
-        # Get the product price
-        #price = response.xpath('//*[contains(@data-buy-box-region, "price")]//span/text()').extract_first().strip().replace('+','').split()[1]
-        #l.add_value('price', price)
+        # Get the product price        
         l.add_xpath('price', '//*[contains(@data-buy-box-region, "price")]//span')
-        #l.add_xpath('price', '//meta[@property="etsymarketplace:price_value"]/@content')
-        #l.add_xpath('price', '//meta[@property="product:price:amount"]/@content')
-        #l.add_xpath('currency', '//meta[@property="product:price:currency"]/@content')
-        #l.add_xpath('currency', '//meta[@property="etsymarketplace:currency_code"]/@content')
-        
+                
         # Get the product URL (ex: www.etsy.com/listing/666125766)
         l.add_value('url', '/'.join(response.url.split('/')[2:5]))
         
         # Get the product description
         l.add_value('description', " ".join(response.xpath('//*[contains(@id, "description-text")]//text()').extract()).strip().replace(' + More - Less',''))
-        #l.add_xpath('description', '//*[@id="description-text"]')
-        #l.add_xpath('description', '//meta[@property="og:description"]/@content')
-
+        
         # Get each product option and save in a list
         product_options = []
         product_options_list = response.xpath('//*[contains(@id, "inventory-variation-select")]')
@@ -153,13 +144,14 @@ class ProductsSpider(scrapy.Spider):
         l.add_xpath('favorited_by', '//a[contains(text(), " favorites")]/text()', re='(\d+)')
                 
         # Get the name of the Store and location 
-        l.add_xpath('store_name', '//span[@itemprop="title"]')
-        #l.add_xpath('store_name', '//*[@id="shop-info"]//*[@class="text-title-smaller"]')        
+        l.add_xpath('store_name', '//span[@itemprop="title"]')        
         l.add_xpath('store_location', '//*[@id="shop-info"]/div')
         l.add_xpath('return_location', "//*[@class='js-estimated-delivery']/following-sibling::div")
         
         # Use the chosen method to get the reviews
         self.logger.info('Reviews scraping option: ' + str(self.reviews_opt))
+        
+        # Option 3 - All reviews
         if self.reviews_opt == 3:
             # Getting all Reviews        
             store_name = response.xpath('//span[@itemprop="title"]//text()').extract_first()
@@ -170,6 +162,7 @@ class ProductsSpider(scrapy.Spider):
             # Go to the all reviews page
             yield Request(rev_url, meta=data, callback=self.parse_reviews)        
         
+        # Option 2 - Ajax request 
         elif self.reviews_opt == 2:
             # Creating the Ajax request
             # Getting the session cookie
@@ -196,7 +189,7 @@ class ProductsSpider(scrapy.Spider):
             yield scrapy.FormRequest(ajax_url, headers=headers, cookies=cookies, 
                                     meta=data, formdata=formdata, 
                                     callback=self.parse_ajax_response)
-
+        # Option 1
         else:        
             # Dict that saves all the reviews data
             reviews_data = []
@@ -220,12 +213,14 @@ class ProductsSpider(scrapy.Spider):
                 reviewer_rating = r.xpath('.//input[@name="rating"]/@value').extract_first()
                 review_content = " ".join(r.xpath('.//div[@class="overflow-hidden"]//text()').extract()).strip()
 
+                # Build the review string
                 rev_data = "Review number: {} \nProfile: {} \nRating: {} \nDate: {} \nContent: {}".format(reviews_counter, reviewer_profile, reviewer_rating, review_date, review_content)
-               
+                
+                # Save into the list
                 reviews_data.append(rev_data)
                 reviews_counter += 1
 
-            # Saves the data
+            # Saves all reviews data
             l.add_value('reviews', "\n\n".join(reviews_data))
         
             # Increment the items counter
@@ -270,11 +265,12 @@ class ProductsSpider(scrapy.Spider):
             
             # Build the string
             rev_data = "Review number: {} \nProfile: {} \nRating: {} \nDate: {} \nContent: {}".format(reviews_counter, reviewer_profile, reviewer_rating, review_date, review_content)
-               
+
+            # Saves the string in a list  
             reviews_data.append(rev_data)
             reviews_counter += 1
 
-        # Saves the data
+        # aves all reviews data
         l.add_value('reviews', "\n\n".join(reviews_data))
       
         # Increment the items counter
@@ -325,6 +321,7 @@ class ProductsSpider(scrapy.Spider):
                 # Build the string
                 rev_data = "Review number: {} \nProfile: {} \nRating: {} \nDate: {} \nContent: {}".format(reviews_counter, reviewer_profile, reviewer_rating, review_date, review_content)
                 
+                # Saves the string in a list
                 reviews_data.append(rev_data)
                 reviews_counter += 1
         
