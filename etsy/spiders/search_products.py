@@ -281,27 +281,33 @@ class ProductsSpider(scrapy.Spider):
         self.COUNTER += 1
         print('\nProducts scraped: {}\n'.format(self.COUNTER))
 
-        return l.load_item()
+        yield l.load_item()
      
 
     # Parse the Store reviews page
     def parse_reviews(self, response):
         # Get the itemLoader object from parser_products
         l = response.meta['itemLoader']
+   
+        # Dict that saves all the reviews data
+        # Check if this is the first access or if there is data from another reviews page
+        if 'reviews_data' in response.meta.keys():
+            reviews_data = response.meta['reviews_data']
+            reviews_counter = response.meta['reviews_counter']
+        else:
+            reviews_data = []
+            reviews_counter = 1
 
         # Get the data from each review
         all_reviews = response.xpath("//*[@data-region='review']")
-        # Dict that saves all the reviews data
-        reviews_data = []
-        reviews_counter = 1
-
+        
         # Process each review
         for r in all_reviews:
             
             # Get the product id of the review
             product_id = response.xpath("//*[@data-region='listing']//@href").extract_first().split('/')[4]
 
-            # Check if the review if for the product in analysis
+            # Check if this is the product in analysis
             if response.meta['product_id'] == product_id:
                 # Get the profile URL of the reviewer
                 reviewer_profile = r.xpath(".//*[@class='shop2-review-attribution']//@href").extract_first()
@@ -321,26 +327,25 @@ class ProductsSpider(scrapy.Spider):
                 
                 reviews_data.append(rev_data)
                 reviews_counter += 1
-
-        # Saves the data
-        l.add_value('reviews', "\n\n".join(reviews_data))
         
         # Go to the next reviews page
         next_page_url = response.xpath("//*[contains(text(),'Next page')]/parent::*/@href").extract_first()        
         # Check if there is a next page
         if next_page_url: 
             # Save the current data 
-            data = {'itemLoader':l, 'product_id':product_id}
+            data = {'itemLoader':l, 'product_id':product_id, 'reviews_data':reviews_data, 'reviews_counter':reviews_counter}
             # Build the request
             yield Request(next_page_url, meta=data, callback=self.parse_reviews)
                
         else:
             # If there is no next page, saves the data
+             # Saves the data
+            l.add_value('reviews', "\n\n".join(reviews_data))        
             # Increment the items counter
             self.COUNTER += 1
             print('\nProducts scraped: {}\n'.format(self.COUNTER))
 
-            return l.load_item()
+            yield l.load_item()
 
    
     # Create the Excel file
