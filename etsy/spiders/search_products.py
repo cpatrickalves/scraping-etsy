@@ -110,7 +110,7 @@ class ProductsSpider(scrapy.Spider):
         l.add_value('url', '/'.join(response.url.split('/')[2:5]))
         
         # Get the product description
-        l.add_value('description', " ".join(response.xpath('//*[contains(@id, "description-text")]//text()').extract()).strip())
+        l.add_value('description', " ".join(response.xpath('//*[contains(@id, "description-text")]//text()').extract()).strip().replace(' + More - Less',''))
         #l.add_xpath('description', '//*[@id="description-text"]')
         #l.add_xpath('description', '//meta[@property="og:description"]/@content')
 
@@ -131,7 +131,7 @@ class ProductsSpider(scrapy.Spider):
                 # example: "Select a color: White, Black, Red, Silver"
                 product_options.append(temp_list[0] +': ' + ', '.join(temp_list[1:]))
 
-        # Separate each option with a | symbol
+        # Separate each option with a | (pipe) symbol
         l.add_value('product_options', '|'.join(product_options))                
 
         # Get the product rating (ex: 4.8 )
@@ -199,7 +199,7 @@ class ProductsSpider(scrapy.Spider):
 
         else:        
             # Dict that saves all the reviews data
-            reviews_data = {}
+            reviews_data = []
             reviews_counter = 1
             
             # Get the data from each review
@@ -220,16 +220,13 @@ class ProductsSpider(scrapy.Spider):
                 reviewer_rating = r.xpath('.//input[@name="rating"]/@value').extract_first()
                 review_content = " ".join(r.xpath('.//div[@class="overflow-hidden"]//text()').extract()).strip()
 
-                rev_data = {'reviewer_profile':reviewer_profile, 
-                            'reviewer_rating': reviewer_rating, 
-                            'review_date':review_date, 
-                            'review_content':review_content}
+                rev_data = "Review number: {} \nProfile: {} \nRating: {} \nDate: {} \nContent: {}".format(reviews_counter, reviewer_profile, reviewer_rating, review_date, review_content)
                
-                reviews_data[reviews_counter] = rev_data
+                reviews_data.append(rev_data)
                 reviews_counter += 1
 
             # Saves the data
-            l.add_value('reviews', reviews_data)
+            l.add_value('reviews', "\n\n".join(reviews_data))
         
             # Increment the items counter
             self.COUNTER += 1
@@ -244,7 +241,7 @@ class ProductsSpider(scrapy.Spider):
         l = response.meta['itemLoader']
         
         # Dict that saves all the reviews data
-        reviews_data = {}
+        reviews_data = []
         reviews_counter = 1
 
         # Loads the Json data 
@@ -270,17 +267,15 @@ class ProductsSpider(scrapy.Spider):
             review_date = r.xpath(".//*[@class='text-link-underline display-inline-block mr-xs-1']/parent::*//text()").extract()[2].strip()
             reviewer_rating = r.xpath('.//input[@name="rating"]/@value').extract_first()
             review_content = " ".join(r.xpath('.//div[@class="overflow-hidden"]//text()').extract()).strip()
-
-            rev_data = {'reviewer_profile':reviewer_profile, 
-                        'reviewer_rating': reviewer_rating, 
-                        'review_date':review_date, 
-                        'review_content':review_content}
-
-            reviews_data[reviews_counter] = rev_data
+            
+            # Build the string
+            rev_data = "Review number: {} \nProfile: {} \nRating: {} \nDate: {} \nContent: {}".format(reviews_counter, reviewer_profile, reviewer_rating, review_date, review_content)
+               
+            reviews_data.append(rev_data)
             reviews_counter += 1
 
         # Saves the data
-        l.add_value('reviews', reviews_data)
+        l.add_value('reviews', "\n\n".join(reviews_data))
       
         # Increment the items counter
         self.COUNTER += 1
@@ -297,7 +292,7 @@ class ProductsSpider(scrapy.Spider):
         # Get the data from each review
         all_reviews = response.xpath("//*[@data-region='review']")
         # Dict that saves all the reviews data
-        reviews_data = {}
+        reviews_data = []
         reviews_counter = 1
 
         # Process each review
@@ -320,17 +315,15 @@ class ProductsSpider(scrapy.Spider):
                 reviewer_rating = r.xpath('.//input[@name="rating"]/@value').extract_first()
                 review_date = r.xpath(".//*[@class='shop2-review-attribution']//text()").extract()[2].replace('on ','').strip()
                 review_content = " ".join(r.xpath('.//div[@class="text-gray-lighter"]//text()').extract()).strip()
+                                        
+                # Build the string
+                rev_data = "Review number: {} \nProfile: {} \nRating: {} \nDate: {} \nContent: {}".format(reviews_counter, reviewer_profile, reviewer_rating, review_date, review_content)
                 
-                rev_data = {'reviewer_profile':reviewer_profile, 
-                                'reviewer_rating': reviewer_rating, 
-                                'review_date':review_date, 
-                                'review_content':review_content}
-
-                reviews_data[reviews_counter] = rev_data
+                reviews_data.append(rev_data)
                 reviews_counter += 1
-                
+
         # Saves the data
-        l.add_value('reviews', reviews_data)
+        l.add_value('reviews', "\n\n".join(reviews_data))
         
         # Go to the next reviews page
         next_page_url = response.xpath("//*[contains(text(),'Next page')]/parent::*/@href").extract_first()        
@@ -374,26 +367,3 @@ class ProductsSpider(scrapy.Spider):
                         ws.append(row)
             # Saves the file
             wb.save(csv_file.replace('.csv', '') + '.xlsx')
-
-"""
-OK - URL
-OK - Listing Title 
-OK - Description 
-OK - Product options
-OK - Price
-OK - Store name
-OK - Location
-OK - Rating number
-OK - Number of votes
-OK - Return location
-OK - Count of images per listing
-OK - Product overview
-OK - Favorited by (very important)
-
-Reviews:
-Rating
-Date
-Review content
-Reviewer profile URL
-"""
-
