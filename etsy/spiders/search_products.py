@@ -15,6 +15,7 @@ import os
 import sys
 import csv
 import glob
+import json
 from openpyxl import Workbook
 from scrapy.http import Request
 from etsy.items import ProductItem
@@ -69,7 +70,8 @@ class ProductsSpider(scrapy.Spider):
         l = ItemLoader(item=ProductItem(), response=response)
 
         # Get the product ID (ex: 666125766)
-        l.add_value('product_id',response.url.split('/')[4])
+        product_id = response.url.split('/')[4]
+        l.add_value('product_id', product_id)
         
         # Get the produc Title
         l.add_xpath('title', '//meta[@property="og:title"]/@content')
@@ -126,41 +128,107 @@ class ProductsSpider(scrapy.Spider):
         l.add_xpath('overview', '//*[@class="listing-page-overview-component"]//li')
         
         # Get the number of people that add the product in favorites
-        #l.add_xpath('favorited_by', '//*[@id="item-overview"]//*[contains(@href, "/favoriters")]/text()', re='(\d+)')
+        l.add_xpath('favorited_by', '//*[@id="item-overview"]//*[contains(@href, "/favoriters")]/text()', re='(\d+)')
         l.add_xpath('favorited_by', '//*[@class="listing-page-favorites-link"]/text()', re='(\d+)')
-        
+        l.add_xpath('favorited_by', '//a[contains(text(), " favorites")]/text()', re='(\d+)')
+                
         # Get the name of the Store and location 
         l.add_xpath('store_name', '//span[@itemprop="title"]')
         #l.add_xpath('store_name', '//*[@id="shop-info"]//*[@class="text-title-smaller"]')        
         l.add_xpath('store_location', '//*[@id="shop-info"]/div')
         l.add_xpath('return_location', "//*[@class='js-estimated-delivery']/following-sibling::div")
-        
-        # Get return location
-#       ]return_loc =  response.xpath("//*[@class='js-estimated-delivery']/following-sibling::div//text()").extract_first().strip()
-        #print('\n\n############ '+response.url.split('/')[4]+ ' --- '+return_loc+' ############\n\n')
-        #l.add_value('return_location',return_loc)        
-        #l.add_xpath('return_location', '//div[contains(text(), "From ")]')
-        
+                
         # If set to True, Spider will visit the page with all store reviews and get the reviews for this specific product
         # If set to False, Spider will get only the reviews in the product's page
-        get_all_views = True
+        get_all_views = False
 
         if get_all_views:
             # Getting all Reviews        
             store_name = response.xpath('//span[@itemprop="title"]//text()').extract_first()
             # Build the reviews URL
             rev_url = "https://www.etsy.com/shop/{}/reviews?ref=l2-see-more-feedback".format(store_name)
-            data = {'itemLoader':l, 'product_id':response.url.split('/')[4]}
+            data = {'itemLoader':l, 'product_id':product_id}
 
             yield Request(rev_url, meta=data, callback=self.parse_reviews)        
         
         else:
-            # Increment the items counter
-            self.COUNTER += 1
-            print('\n\n Products scraped: {}\n\n'.format(self.COUNTER))
+            # Creating the Ajax request
+            # Getting the session cookie
+            get_cookie = response.request.headers['Cookie'].split(b';')[0].split(b'=')
+            cookies = {get_cookie[0].decode("utf-8"):get_cookie[1].decode("utf-8")}
 
-            return l.load_item()
+            # Getting the x-csrf-token
+            headers = {'x-csrf-token': response.xpath("//*[@name='_nnc']/@value").extract_first()}
 
+            # Shop Id
+            shop_id = response.xpath("//*[@property='og:image']/@content").extract_first().split('/')[3]
+            
+            formdata = {
+            'stats_sample_rate': '',
+            'specs[reviews][]': 'Listzilla_ApiSpecs_Reviews',
+            'specs[reviews][1][listing_id]': product_id,
+            'specs[reviews][1][shop_id]': shop_id,
+            'specs[reviews][1][render_complete]': 'true'
+            }
+
+            data = {'itemLoader':l, 'product_id':product_id}
+            ajax_url = "https://www.etsy.com/api/v3/ajax/bespoke/member/neu/specs/reviews"
+
+            yield scrapy.FormRequest(ajax_url, headers=headers, cookies=cookies, 
+                                    meta=data, formdata=formdata, 
+                                    callback=self.parse_ajax_response)
+    
+   
+    # Parse the Ajax response (Json) and extract reviews data
+    def parse_ajax_response(self, response):
+        # Get the itemLoader object from parser_products
+        l = response.meta['itemLoader']
+        
+        # Dict that saves all the reviews data
+        reviews_data = {}
+        reviews_counter = 1
+
+        # Loads the Json data 
+        j = json.loads(response.text)
+        html = j["output"]["reviews"]
+        # Create the Selector
+        sel = scrapy.Selector(text=html)
+
+        # Get the data from each review
+        all_reviews = sel.xpath('//*[@class="listing-page__review col-group pl-xs-0 pr-xs-0"]')
+        # Process each review
+        for r in all_reviews:
+
+            # Get the profile URL of the reviewer
+            reviewer_profile = r.xpath(".//*[@class='display-block']/parent::*//@href").extract_first()
+            if reviewer_profile:                
+                # Build the full profile url
+                reviewer_profile = 'www.etsy.com' + reviewer_profile
+            else:
+                # If the profile is inactive there is no profile url
+                continue
+
+            review_date = r.xpath(".//*[@class='text-link-underline display-inline-block mr-xs-1']/parent::*//text()").extract()[2].strip()
+            reviewer_rating = r.xpath('.//input[@name="rating"]/@value').extract_first()
+            review_content = " ".join(r.xpath('.//div[@class="overflow-hidden"]//text()').extract()).strip()
+
+            rev_data = {'reviewer_profile':reviewer_profile, 
+                        'reviewer_rating': reviewer_rating, 
+                        'review_date':review_date, 
+                        'review_content':review_content}
+
+            reviews_data[reviews_counter] = rev_data
+            reviews_counter += 1
+
+        # Saves the data
+        l.add_value('reviews', reviews_data)
+      
+        # Increment the items counter
+        self.COUNTER += 1
+        print('\nProducts scraped: {}\n'.format(self.COUNTER))
+
+        return l.load_item()
+     
 
     # Parse the Store reviews page
     def parse_reviews(self, response):
@@ -222,7 +290,7 @@ class ProductsSpider(scrapy.Spider):
 
             return l.load_item()
 
-
+   
     # Create the Excel file
     def close(self, reason):
        
