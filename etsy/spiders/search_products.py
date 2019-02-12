@@ -34,9 +34,20 @@ class ProductsSpider(scrapy.Spider):
     # Count the number of items scraped
     COUNTER = 0
 
-    def __init__(self, search, *args, **kwargs):
+    # Set the method to get the product reviews
+    # If set to 1 (default), Spider will get only the reviews in the product's page, the default value is 4 reviews [FAST SCRAPING]
+    # If set to 2, Spider will produce a Ajax request to get all reviews in the product's page, that is, a maximum of 10 reviews
+    # If set to 3, Spider will visit the page with all store reviews and get all the reviews for this specific product [SLOWER SCRAPING]
+    reviews_opt = None
+
+    def __init__(self, search, reviews_option=1,*args, **kwargs):
         if search:
+            # Build the search URL
             self.start_urls = ['https://www.etsy.com/search?q=%s' % search]
+            
+            # Set the chosen option
+            self.reviews_opt = int(reviews_option)
+
         super(ProductsSpider, self).__init__(*args, **kwargs)
       
 
@@ -137,21 +148,20 @@ class ProductsSpider(scrapy.Spider):
         #l.add_xpath('store_name', '//*[@id="shop-info"]//*[@class="text-title-smaller"]')        
         l.add_xpath('store_location', '//*[@id="shop-info"]/div')
         l.add_xpath('return_location', "//*[@class='js-estimated-delivery']/following-sibling::div")
-                
-        # If set to True, Spider will visit the page with all store reviews and get the reviews for this specific product
-        # If set to False, Spider will get only the reviews in the product's page
-        get_all_views = False
 
-        if get_all_views:
+        # Use the chosen method to get the reviews
+        self.logger.info('Reviews scraping option: ' + str(self.reviews_opt))
+        if self.reviews_opt == 3:
             # Getting all Reviews        
             store_name = response.xpath('//span[@itemprop="title"]//text()').extract_first()
             # Build the reviews URL
             rev_url = "https://www.etsy.com/shop/{}/reviews?ref=l2-see-more-feedback".format(store_name)
             data = {'itemLoader':l, 'product_id':product_id}
-
+            
+            # Go to the all reviews page
             yield Request(rev_url, meta=data, callback=self.parse_reviews)        
         
-        else:
+        elif self.reviews_opt == 2:
             # Creating the Ajax request
             # Getting the session cookie
             get_cookie = response.request.headers['Cookie'].split(b';')[0].split(b'=')
@@ -177,7 +187,46 @@ class ProductsSpider(scrapy.Spider):
             yield scrapy.FormRequest(ajax_url, headers=headers, cookies=cookies, 
                                     meta=data, formdata=formdata, 
                                     callback=self.parse_ajax_response)
-    
+        else:        
+            # Dict that saves all the reviews data
+            reviews_data = {}
+            reviews_counter = 1
+            
+            # Get the data from each review
+            all_reviews = response.xpath('//*[@class="listing-page__review col-group pl-xs-0 pr-xs-0"]')
+            # Process each review
+            for r in all_reviews:
+
+                # Get the profile URL of the reviewer
+                reviewer_profile = r.xpath(".//*[@class='display-block']/parent::*//@href").extract_first()
+                if reviewer_profile:                
+                    # Build the full profile url
+                    reviewer_profile = 'www.etsy.com' + reviewer_profile
+                else:
+                    # If the profile is inactive there is no profile url
+                    continue
+
+                review_date = r.xpath(".//*[@class='text-link-underline display-inline-block mr-xs-1']/parent::*//text()").extract()[2].strip()
+                reviewer_rating = r.xpath('.//input[@name="rating"]/@value').extract_first()
+                review_content = " ".join(r.xpath('.//div[@class="overflow-hidden"]//text()').extract()).strip()
+
+                rev_data = {'reviewer_profile':reviewer_profile, 
+                            'reviewer_rating': reviewer_rating, 
+                            'review_date':review_date, 
+                            'review_content':review_content}
+               
+                reviews_data[reviews_counter] = rev_data
+                reviews_counter += 1
+
+            # Saves the data
+            l.add_value('reviews', reviews_data)
+        
+            # Increment the items counter
+            self.COUNTER += 1
+            print('\nProducts scraped: ----- {}\n'.format(self.COUNTER))
+
+            return l.load_item()
+            
    
     # Parse the Ajax response (Json) and extract reviews data
     def parse_ajax_response(self, response):
