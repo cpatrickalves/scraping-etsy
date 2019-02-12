@@ -29,8 +29,7 @@ class ProductsSpider(scrapy.Spider):
     start_urls = ['https://www.etsy.com/']
 
     # Max number of items 
-    COUNT_MAX = 2
-    custom_settings = { "CLOSESPIDER_ITEMCOUNT" : COUNT_MAX }
+    COUNT_MAX = 10**100   
     # Count the number of items scraped
     COUNTER = 0
 
@@ -40,10 +39,14 @@ class ProductsSpider(scrapy.Spider):
     # If set to 3, Spider will visit the page with all store reviews and get all the reviews for this specific product [SLOWER SCRAPING]
     reviews_opt = None
 
-    def __init__(self, search, reviews_option=1,*args, **kwargs):
+    def __init__(self, search, reviews_option=1, count_max=None,*args, **kwargs):
         if search:
             # Build the search URL
             self.start_urls = ['https://www.etsy.com/search?q=%s' % search]
+            
+            # Set the maximum number of items to be scraped
+            if count_max:
+                self.COUNT_MAX = int(count_max)
             
             # Set the chosen option
             self.reviews_opt = int(reviews_option)
@@ -58,20 +61,26 @@ class ProductsSpider(scrapy.Spider):
         products_list = response.xpath('//*[contains(@class, "organic-impression")]')
         # For each product extracts the product URL
         for product in products_list:
-            product_url = product.xpath("./@href").extract_first()
-                         
-            # Go to the product's page to get the data
-            yield scrapy.Request(product_url, callback=self.parse_product)
+            product_url = product.xpath("./@href").extract_first()   
 
-        # Pagination - Go to the next page         
+            # Stops if the COUNTER reaches the maximum set value
+            if self.COUNTER < self.COUNT_MAX: 
+                # Go to the product's page to get the data               
+                yield scrapy.Request(product_url, callback=self.parse_product)
+
+        # Pagination - Go to the next page                
         next_page_url = response.xpath('//*[contains(@role, "navigation")]//@href').extract()[-1]
         self.logger.info('NEXT PAGE')
         yield scrapy.Request(next_page_url)
 
 
     # Get the HTML from product's page and get the data
-    def parse_product(self, response):
-        
+    def parse_product(self, response):        
+
+        # Stops if the COUNTER reaches the maximum set value
+        if self.COUNTER >= self.COUNT_MAX: 
+            raise scrapy.exceptions.CloseSpider(reason='COUNT_MAX value reached - {} items'.format(self.COUNT_MAX))
+       
         # Check if the product is available
         no_available_message = response.xpath('//h2[contains(text(), "Darn")]')
         if no_available_message:
@@ -148,7 +157,7 @@ class ProductsSpider(scrapy.Spider):
         #l.add_xpath('store_name', '//*[@id="shop-info"]//*[@class="text-title-smaller"]')        
         l.add_xpath('store_location', '//*[@id="shop-info"]/div')
         l.add_xpath('return_location', "//*[@class='js-estimated-delivery']/following-sibling::div")
-
+        
         # Use the chosen method to get the reviews
         self.logger.info('Reviews scraping option: ' + str(self.reviews_opt))
         if self.reviews_opt == 3:
@@ -183,10 +192,11 @@ class ProductsSpider(scrapy.Spider):
 
             data = {'itemLoader':l, 'product_id':product_id}
             ajax_url = "https://www.etsy.com/api/v3/ajax/bespoke/member/neu/specs/reviews"
-
+            
             yield scrapy.FormRequest(ajax_url, headers=headers, cookies=cookies, 
                                     meta=data, formdata=formdata, 
                                     callback=self.parse_ajax_response)
+
         else:        
             # Dict that saves all the reviews data
             reviews_data = {}
@@ -223,11 +233,11 @@ class ProductsSpider(scrapy.Spider):
         
             # Increment the items counter
             self.COUNTER += 1
-            print('\nProducts scraped: ----- {}\n'.format(self.COUNTER))
+            print('\nProducts scraped: {}\n'.format(self.COUNTER))
 
-            return l.load_item()
-            
-   
+            yield l.load_item()
+
+
     # Parse the Ajax response (Json) and extract reviews data
     def parse_ajax_response(self, response):
         # Get the itemLoader object from parser_products
