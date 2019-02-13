@@ -5,10 +5,11 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
-
+# This Pipeline processes several items scraped.
 class EtsyPipeline(object):
     def process_item(self, item, spider):
         
+        # Format the price output
         if 'price' in item:
             # Check if there is a currency symbol
             if len(item['price'].split()) > 1:
