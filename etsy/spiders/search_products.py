@@ -3,8 +3,8 @@
 #title           :search_products.py
 #description     :A spider to scrape etsy.com products based on a search string.
 #author          :Patrick Alves (cpatrickalves@gmail.com)
-#last Update     :07-02-2019
-#usage           :scrapy crawl etsy_search -a search='3d printed' -o products.csv
+#last Update     :12-02-2019
+#usage           :scrapy crawl search_products -a search='3d printed' -o products.csv
 #python version  :3.6
 #==============================================================================
 
@@ -57,6 +57,11 @@ class ProductsSpider(scrapy.Spider):
         
         # Get the list of products from html response
         products_list = response.xpath('//*[contains(@class, "organic-impression")]')
+        
+        # Stops if there is no product to scrape
+        if len(products_list) == 0:
+            raise scrapy.exceptions.CloseSpider(reason='All products scraped - {} items'.format(self.COUNTER))
+               
         # For each product extracts the product URL
         for product in products_list:
             product_url = product.xpath("./@href").extract_first()   
@@ -67,9 +72,10 @@ class ProductsSpider(scrapy.Spider):
                 yield scrapy.Request(product_url, callback=self.parse_product)
 
         # Pagination - Go to the next page  
-        current_page_number = int(response.url[-1])                      
+        current_page_number = int(response.url.split('=')[-1])                  
         next_page_number = current_page_number + 1
-        next_page_url = response.url[:-1] + str(next_page_number)        
+        # Build the next page URL
+        next_page_url = '='.join(response.url.split('=')[:-1]) + '=' + str(next_page_number)        
         yield scrapy.Request(next_page_url)
 
 

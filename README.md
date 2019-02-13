@@ -48,3 +48,10 @@ To choose the option to scraping the reviews use the *-a reviews_option* paramet
 scrapy crawl search_products -a search='3d printed' -a reviews_option=3 -o products.csv
 ```
 
+## Scraping speed
+
+You can change the number of concurrent requests performed by Scrapy in the *setting.py* file.
+```
+CONCURRENT_REQUESTS = 10
+```
+Change this if you want to decrease the number of requests to avoid get blocking by Etsy.
