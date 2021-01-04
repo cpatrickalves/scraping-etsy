@@ -99,7 +99,8 @@ class ProductsSpider(scrapy.Spider):
         l.add_value('product_id', product_id)
 
         # Get the produc Title
-        l.add_xpath('title', '//meta[@property="og:title"]/@content')
+        #l.add_xpath('title', '//meta[@property="og:title"]/@content')
+        l.add_xpath('title', '//div[@data-component="listing-page-title-component"]/h1/text()')
         #l.add_xpath('title', "//h1[@data-listing-id='{}']".format(response.url.split('/')[4]))
 
         # Get the product price

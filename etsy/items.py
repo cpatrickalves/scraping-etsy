@@ -22,10 +22,11 @@ class ProductItem(scrapy.Item):
 
     # Each item may have a input and output processor
     # Each processor performs a series of transformations on the data before saving it
-    
+
     product_id = scrapy.Field(output_processor=TakeFirst())
     url = scrapy.Field(output_processor=TakeFirst())
-    title = scrapy.Field(output_processor=TakeFirst())
+    title = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
+    					       output_processor=TakeFirst())
     description = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
     					       output_processor=TakeFirst())
 
