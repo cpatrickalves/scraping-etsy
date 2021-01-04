@@ -56,27 +56,28 @@ class ProductsSpider(scrapy.Spider):
     def parse(self, response):
 
         # Get the list of products from html response
-        products_list = response.xpath('//*[contains(@class, "organic-impression")]')
-
-        # Stops if there is no product to scrape
-        if len(products_list) == 0:
-            raise scrapy.exceptions.CloseSpider(reason='All products scraped - {} items'.format(self.COUNTER))
+        products_list = response.xpath('//div[@data-search-results=""]/div//li//a/@href').extract()
+        products_id_list = [product_href.split("/")[4] for product_href in products_list]
 
         # For each product extracts the product URL
-        for product in products_list:
-            product_url = product.xpath("./@href").extract_first()
+        print(f"#### FOUND {len(products_id_list)} PRODUCTS")
 
+        for product_id in products_id_list:
+            product_url = f'https://www.etsy.com/listing/{product_id}'
             # Stops if the COUNTER reaches the maximum set value
             if self.COUNTER < self.COUNT_MAX:
                 # Go to the product's page to get the data
-                yield scrapy.Request(product_url, callback=self.parse_product)
+                yield scrapy.Request(product_url, callback=self.parse_product, dont_filter=True)
 
         # Pagination - Go to the next page
         current_page_number = int(response.url.split('=')[-1])
         next_page_number = current_page_number + 1
         # Build the next page URL
         next_page_url = '='.join(response.url.split('=')[:-1]) + '=' + str(next_page_number)
-        yield scrapy.Request(next_page_url)
+
+        # If the current list is not empty
+        if len(products_id_list) > 0:
+            yield scrapy.Request(next_page_url)
 
 
     # Get the HTML from product's page and get the data
