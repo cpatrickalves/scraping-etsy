@@ -28,7 +28,7 @@ class ProductItem(scrapy.Item):
     title = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
     					       output_processor=TakeFirst())
     description = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
-    					       output_processor=TakeFirst())
+    					       output_processor=Join(' '))
 
     product_options = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                               output_processor=Join(','))

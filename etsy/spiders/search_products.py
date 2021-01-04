@@ -110,7 +110,7 @@ class ProductsSpider(scrapy.Spider):
         l.add_value('url', '/'.join(response.url.split('/')[2:5]))
 
         # Get the product description
-        l.add_value('description', " ".join(response.xpath('//*[contains(@id, "description-text")]//text()').extract()).strip().replace(' + More - Less',''))
+        l.add_xpath('description', '//div[@data-id="description-text"]/div/p/text()')
 
         # Get each product option and save in a list
         product_options = []
@@ -144,7 +144,7 @@ class ProductsSpider(scrapy.Spider):
         l.add_value('images_urls', images_sel)
 
         # Get the product overview
-        l.add_xpath('overview', '//*[@class="listing-page-overview-component"]//li')
+        #l.add_xpath('overview', '//*[@class="listing-page-overview-component"]//li')
 
         # Get the number of people that add the product in favorites
         l.add_xpath('favorited_by', '//*[@id="item-overview"]//*[contains(@href, "/favoriters")]/text()', re='(\d+)')
