@@ -32,13 +32,16 @@ class ProductsSpider(scrapy.Spider):
     # Count the number of items scraped
     COUNTER = 0
 
+    # Get only the products URLs
+    URLS_ONLY = False
+
     # Set the method to get the product reviews
     # If set to 1 (default), Spider will get only the reviews in the product's page, the default value is 4 reviews [FAST SCRAPING]
     # If set to 2, Spider will produce a Ajax request to get all reviews in the product's page, that is, a maximum of 10 reviews
     # If set to 3, Spider will visit the page with all store reviews and get all the reviews for this specific product [SLOWER SCRAPING]
     reviews_opt = None
 
-    def __init__(self, search, reviews_option=1, count_max=None,*args, **kwargs):
+    def __init__(self, search, reviews_option=1, count_max=None, urls_only=False, *args, **kwargs):
         if search:
             # Build the search URL
             self.start_urls = ['https://www.etsy.com/search?q={}&ref=pagination&page=1'.format(search)]
@@ -46,6 +49,8 @@ class ProductsSpider(scrapy.Spider):
             if count_max:
                 self.COUNT_MAX = int(count_max)
 
+            # Get only the products URLs
+            self.URLS_ONLY = bool(urls_only)
             # Set the chosen review option
             self.reviews_opt = int(reviews_option)
 
@@ -62,12 +67,23 @@ class ProductsSpider(scrapy.Spider):
         # For each product extracts the product URL
         print(f"#### FOUND {len(products_id_list)} PRODUCTS")
 
-        for product_id in products_id_list:
-            product_url = f'https://www.etsy.com/listing/{product_id}'
-            # Stops if the COUNTER reaches the maximum set value
-            if self.COUNTER < self.COUNT_MAX:
-                # Go to the product's page to get the data
-                yield scrapy.Request(product_url, callback=self.parse_product, dont_filter=True)
+        if self.URLS_ONLY:
+            for product_id in products_id_list:
+
+                # Create the ItemLoader object that stores each product information
+                l = ItemLoader(item=ProductItem(), response=response)
+
+                product_url = f'https://www.etsy.com/listing/{product_id}'
+                l.add_value('url', product_url)
+                yield l.load_item()
+
+        else:
+            for product_id in products_id_list:
+                product_url = f'https://www.etsy.com/listing/{product_id}'
+                # Stops if the COUNTER reaches the maximum set value
+                if self.COUNTER < self.COUNT_MAX:
+                    # Go to the product's page to get the data
+                    yield scrapy.Request(product_url, callback=self.parse_product, dont_filter=True)
 
         # Pagination - Go to the next page
         current_page_number = int(response.url.split('=')[-1])
