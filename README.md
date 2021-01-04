@@ -55,3 +55,9 @@ You can change the number of concurrent requests performed by Scrapy in the *set
 CONCURRENT_REQUESTS = 10
 ```
 Change this if you want to decrease the number of requests to avoid get blocking by Etsy.
+
+If you only need the products URLS, the scraping can be faster, just use the `urls_only` flag:
+
+```
+scrapy crawl search_products -a search='xbox controller elite' -o products.csv -a urls_only=true
+```
