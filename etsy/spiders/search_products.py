@@ -103,7 +103,7 @@ class ProductsSpider(scrapy.Spider):
         #l.add_xpath('title', "//h1[@data-listing-id='{}']".format(response.url.split('/')[4]))
 
         # Get the product price
-        l.add_xpath('price', '//*[contains(@data-buy-box-region, "price")]//span')
+        l.add_xpath('price', '//*[contains(@data-buy-box-region, "price")]//p')
 
         # Get the product URL (ex: www.etsy.com/listing/666125766)
         l.add_value('url', '/'.join(response.url.split('/')[2:5]))
