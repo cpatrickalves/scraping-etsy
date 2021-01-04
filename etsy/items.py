@@ -41,15 +41,20 @@ class ProductItem(scrapy.Item):
 
     rating = scrapy.Field(output_processor=TakeFirst())
 
-    number_of_votes = scrapy.Field(output_processor=TakeFirst())
+    number_of_votes = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
+                            output_processor=TakeFirst())
     count_of_images = scrapy.Field(output_processor=TakeFirst())
+
+    images_urls = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
+                              output_processor=Join(','))
+
     overview = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                             output_processor=Join(','))
 
     favorited_by = scrapy.Field(output_processor=TakeFirst())
     store_name = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                               output_processor=TakeFirst())
-                              
+
     store_location = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                                   output_processor=TakeFirst())
 

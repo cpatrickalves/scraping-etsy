@@ -136,11 +136,12 @@ class ProductsSpider(scrapy.Spider):
         l.add_xpath('rating', '//a[@href="#reviews"]//input[@name="rating"]/@value')
 
         # Get the number of votes (number of reviews)
-        l.add_xpath('number_of_votes', '//a[@href="#reviews"]/span[last()]/text()', re='(\d+)')
+        l.add_xpath('number_of_votes', '//button[@id="same-listing-reviews-tab"]/span/text()')
 
         # Count the number of product images
-        images_sel = response.xpath('//*[@id="image-carousel"]/li')
+        images_sel = response.xpath('//ul[@data-carousel-pagination-list=""]/li/img/@data-src-delay').extract()
         l.add_value('count_of_images', len(images_sel))
+        l.add_value('images_urls', images_sel)
 
         # Get the product overview
         l.add_xpath('overview', '//*[@class="listing-page-overview-component"]//li')
@@ -151,9 +152,9 @@ class ProductsSpider(scrapy.Spider):
         l.add_xpath('favorited_by', '//a[contains(text(), " favorites")]/text()', re='(\d+)')
 
         # Get the name of the Store and location
-        l.add_xpath('store_name', '//span[@itemprop="title"]')
-        l.add_xpath('store_location', '//*[@id="shop-info"]/div')
-        l.add_xpath('return_location', "//*[@class='js-estimated-delivery']/following-sibling::div")
+        l.add_xpath('store_name', 'response.xpath("//div[@id="listing-page-cart"]//span/text()")')
+        #l.add_xpath('store_location', '//*[@id="shop-info"]/div')
+        #l.add_xpath('return_location', "//*[@class='js-estimated-delivery']/following-sibling::div")
 
         # Use the chosen method to get the reviews
         self.logger.info('Reviews scraping option: ' + str(self.reviews_opt))
