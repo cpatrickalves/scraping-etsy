@@ -41,7 +41,7 @@ class ProductItem(scrapy.Item):
 
     rating = scrapy.Field(output_processor=TakeFirst())
 
-    number_of_votes = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
+    number_of_reviews = scrapy.Field(input_processor=MapCompose(normalize_space, remove_tags, strip_space),
                             output_processor=TakeFirst())
     count_of_images = scrapy.Field(output_processor=TakeFirst())
 

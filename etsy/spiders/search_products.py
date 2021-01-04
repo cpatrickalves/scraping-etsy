@@ -136,7 +136,7 @@ class ProductsSpider(scrapy.Spider):
         l.add_xpath('rating', '//a[@href="#reviews"]//input[@name="rating"]/@value')
 
         # Get the number of votes (number of reviews)
-        l.add_xpath('number_of_votes', '//button[@id="same-listing-reviews-tab"]/span/text()')
+        l.add_xpath('number_of_reviews', '//button[@id="same-listing-reviews-tab"]/span/text()')
 
         # Count the number of product images
         images_sel = response.xpath('//ul[@data-carousel-pagination-list=""]/li/img/@data-src-delay').extract()
@@ -152,7 +152,7 @@ class ProductsSpider(scrapy.Spider):
         l.add_xpath('favorited_by', '//a[contains(text(), " favorites")]/text()', re='(\d+)')
 
         # Get the name of the Store and location
-        l.add_xpath('store_name', 'response.xpath("//div[@id="listing-page-cart"]//span/text()")')
+        l.add_xpath('store_name', '//div[@id="listing-page-cart"]//span/text()')
         #l.add_xpath('store_location', '//*[@id="shop-info"]/div')
         #l.add_xpath('return_location', "//*[@class='js-estimated-delivery']/following-sibling::div")
 
