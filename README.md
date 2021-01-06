@@ -2,7 +2,7 @@
 
 This project was built using [Scrapy](https://scrapy.org/) (Scraping and Web Crawling Framework).
 
-It contains a set of Spiders to gather product's data from [Etsy Website](www.etsy.com).
+It contains a set of Spiders to gather product's data from [Etsy Website](https://www.etsy.com).
 
 ## Prerequisites
 
